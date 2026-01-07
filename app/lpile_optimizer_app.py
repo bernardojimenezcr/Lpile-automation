@@ -2373,14 +2373,17 @@ class LPileOptimizerApp:
         ).grid(row=r, column=4, columnspan=6, sticky="w")
 
     def _build_cases_table(self, r):
-        # Frame to hold table + scrollbar
-        frame = tk.Frame(self.main_frame, bg=BG_COLOR)
-        frame.grid(row=r, column=0, columnspan=10, sticky="nsew", pady=(6, 6))
-        self.main_frame.grid_rowconfigure(r, weight=1)
-
+    # Fixed-height frame to hold table + scrollbar (does NOT move anything above)
+        frame = tk.Frame(self.main_frame, bg=BG_COLOR, height=260)  # <- ajustá 220/260/300
+        frame.grid(row=r, column=0, columnspan=10, sticky="ew", pady=(6, 6))
+        frame.grid_propagate(False)  # 🔑 prevents shrinking; keeps fixed height
+    
+        # IMPORTANT: do NOT give this row weight (so top layout stays put)
+        self.main_frame.grid_rowconfigure(r, weight=0)
+    
         cols = ("Case", "W Section", "Pile Type", "L_total (ft)", "Member Utilization (%)")
-        self.cases_tree = ttk.Treeview(frame, columns=cols, show="headings", height=14)
-
+        self.cases_tree = ttk.Treeview(frame, columns=cols, show="headings")  # removed height=14
+    
         for c in cols:
             self.cases_tree.heading(c, text=c)
             if c in ("Case",):
@@ -2393,23 +2396,27 @@ class LPileOptimizerApp:
                 self.cases_tree.column(c, width=170, anchor="center", stretch=False)
             else:
                 self.cases_tree.column(c, width=140, anchor="w", stretch=True)
-
+    
         vsb = ttk.Scrollbar(frame, orient="vertical", command=self.cases_tree.yview)
         self.cases_tree.configure(yscrollcommand=vsb.set)
-
+    
         self.cases_tree.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
-
+    
         frame.grid_rowconfigure(0, weight=1)
         frame.grid_columnconfigure(0, weight=1)
-
-        self.main_frame.grid_rowconfigure(r, weight=1)      # la tabla se expande
+    
+        # Hint row (optional)
+        hint = tk.Label(
+            self.main_frame,
+            text="Tip: double-click a row to copy it (Ctrl+C) is supported by Treeview selection.",
+            bg=BG_COLOR, fg="#bdbdbd", anchor="w"
+        )
+        hint.grid(row=r+1, column=0, columnspan=10, sticky="ew", pady=(0, 6))
+    
+        # Keep hint row non-expanding
         self.main_frame.grid_rowconfigure(r+1, weight=0)
 
-        # Hint row (optional)
-        hint = tk.Label(self.main_frame, text="Tip: double-click a row to copy it (Ctrl+C) is supported by Treeview selection.",
-                        bg=BG_COLOR, fg="#bdbdbd", anchor="w")
-        hint.grid(row=r+1, column=0, columnspan=10, sticky="ew", pady=(0, 6))
 
     # ---------- toggles ----------
     def _toggle_manuf_entry(self):
