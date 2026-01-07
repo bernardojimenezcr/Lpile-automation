@@ -154,7 +154,7 @@ def fmt_sci_lp(x: float) -> str:
 # STEEL SHAPES DB (from your corrosion app)
 # =========================================================
 def load_shapes_db():
-    shapes_path = resource_path("steel_shapes.csv")
+    shapes_path = resource_path("data/steel_shapes.csv")
     shapes_by_name = {}
     names_all = []
 
@@ -1935,7 +1935,7 @@ class LPileOptimizerApp:
             self.root.iconbitmap(icon_ico)
         except Exception:
             try:
-                icon_png = tk.PhotoImage(file=resource_path("Ulteig.png"))
+                icon_png = tk.PhotoImage(file=resource_path("assets/Ulteig.png"))
                 self.root.iconphoto(False, icon_png)
             except Exception:
                 pass
@@ -1947,7 +1947,7 @@ class LPileOptimizerApp:
 
         top_row = 0
         try:
-            logo_path = resource_path("Ulteig.png")
+            logo_path = resource_path("assets/Ulteig.png")
             self.logo_original = tk.PhotoImage(file=logo_path)
             self.logo = self.logo_original.subsample(LOGO_SUBSAMPLE, LOGO_SUBSAMPLE)
             logo_label = tk.Label(self.main_frame, image=self.logo, bg=BG_COLOR)
