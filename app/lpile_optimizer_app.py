@@ -871,11 +871,11 @@ def parse_lp12o_demands_single(lp12o_path: Path) -> dict:
 
     Puc_head_lb = _grab_float(rf"Axial thrust load on pile head\s*=\s*({_FLOAT_RE})\s*lbs", txt)
 
-    Mmax_inlb = _grab_float(rf"Maximum bending moment\s*=\s*({_FLOAT_RE})\.\s*inch-lbs", txt)
-    Lbx_ft    = _grab_float(rf"Depth of maximum bending moment\s*=\s*({_FLOAT_RE})\s*feet below pile head", txt)
+    Mmax_inlb = _grab_float(rf"Maximum bending moment\s*=\s*({_FLOAT_RE})\s*\.?\s*inch-?lbs", txt)
+    Lbx_ft    = _grab_float(rf"Depth of maximum bending moment\s*=\s*({_FLOAT_RE})\s*feet", txt)
 
-    Vmax_lb = _grab_float(rf"Maximum shear force\s*=\s*({_FLOAT_RE})\.\s*lbs", txt)
-    Lby_ft  = _grab_float(rf"Depth of maximum shear force\s*=\s*({_FLOAT_RE})\s*feet below pile head", txt)
+    Vmax_lb = _grab_float(rf"Maximum shear force\s*=\s*({_FLOAT_RE})\s*\.?\s*lbs", txt)
+    Lby_ft  = _grab_float(rf"Depth of maximum shear force\s*=\s*({_FLOAT_RE})\s*feet", txt)
 
     return dict(
         Ltotal_ft=Ltotal_ft,
