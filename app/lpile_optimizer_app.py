@@ -1734,7 +1734,6 @@ def steel_check_unitary_axis(
     Mmax_inlb   = demands.get("Mmax_inlb")
     Vmax_lb     = demands.get("Vmax_lb")
     Lbx_ft      = demands.get("Lbx_ft")
-    LA_reveal_ft = demands.get("LA_reveal_ft")  # optional (may be None)
 
     if Puc_head_lb is None or Mmax_inlb is None or Vmax_lb is None or Lbx_ft is None:
         raise RuntimeError(
@@ -1742,25 +1741,25 @@ def steel_check_unitary_axis(
             "Need: Axial thrust load, Maximum bending moment, Maximum shear force, Depth of maximum bending moment."
         )
 
-    Pr_kips  = Puc_head_lb / 1000.0
+    Pr_kips = Puc_head_lb / 1000.0
     Mu_kipft = (Mmax_inlb / 1000.0) / 12.0
-    Vu_kips  = abs(Vmax_lb) / 1000.0
+    Vu_kips = abs(Vmax_lb) / 1000.0
 
     h_web = d_in - 2.0 * tf_in
     if h_web <= 0:
         raise ValueError(f"Invalid geometry: d - 2*tf = {h_web} <= 0")
 
-    Sx = Ix_in4 / (d_in / 2.0)
-    Sy = Iy_in4 / (bf_in / 2.0)
+    Sx = Ix_in4 / (d_in/2.0)
+    Sy = Iy_in4 / (bf_in/2.0)
 
-    Zx = bf_in * tf_in * (d_in - tf_in) + 0.25 * tw_in * (d_in - 2.0 * tf_in) ** 2
-    Zy = (bf_in ** 2 * tf_in) / 2.0 + 0.25 * tw_in ** 2 * (d_in - 2.0 * tf_in)
+    Zx = bf_in*tf_in*(d_in - tf_in) + 0.25*tw_in*(d_in - 2.0*tf_in)**2
+    Zy = (bf_in**2 * tf_in)/2.0 + 0.25*tw_in**2 * (d_in - 2.0*tf_in)
 
     rx = math.sqrt(Ix_in4 / A_in2)
     ry = math.sqrt(Iy_in4 / A_in2)
 
-    J  = (2.0 * bf_in * tf_in ** 3 + (d_in - tf_in) * tw_in ** 3) / 3.0
-    Cw = (d_in - tf_in) ** 2 * (bf_in ** 3) * tf_in / 24.0
+    J  = (2.0*bf_in*tf_in**3 + (d_in - tf_in)*tw_in**3) / 3.0
+    Cw = (d_in - tf_in)**2 * (bf_in**3) * tf_in / 24.0
 
     if ax == "STRONG":
         S_bend = Sx
@@ -1775,30 +1774,22 @@ def steel_check_unitary_axis(
         hof = bf_in - tf_in
         rtsf = math.sqrt((Ix_in4 * (d_in - tf_in)) / (2.0 * Sy)) if Sy > 0 else 0.0
 
-    Put_kips   = float(Put_lb) / 1000.0
-    Pn_t_kips  = Fy_ksi * A_in2
-    Pa_t_kips  = Pn_t_kips / Omega_t
+    Put_kips = float(Put_lb) / 1000.0
+    Pn_t_kips = Fy_ksi * A_in2
+    Pa_t_kips = Pn_t_kips / Omega_t
     Util_tension = _safe_div(Put_kips, Pa_t_kips)
 
-    # ---- Compression buckling length choice (ft) ----
-    # Keep existing behavior as fallback (Lbx_ft), but allow reveal if present.
-    # If you later want strict "use reveal only", we can change this policy.
-    if LA_reveal_ft is not None and float(LA_reveal_ft) > 0:
-        Lc_ft = float(LA_reveal_ft)
-    else:
-        Lc_ft = float(Lbx_ft)
+    KLr_x = (kx * Lbx_ft * 12.0) / rx
+    KLr_y = (ky * Lbx_ft * 12.0) / ry
 
-    KLr_x = (kx * Lc_ft * 12.0) / rx
-    KLr_y = (ky * Lc_ft * 12.0) / ry
-
-    lambda_f = (bf_in / 2.0) / tf_in
-    lambda_w = (d_in - 2.0 * tf_in) / tw_in
+    lambda_f = (bf_in/2.0) / tf_in
+    lambda_w = (d_in - 2.0*tf_in) / tw_in
     lambda_f_lim = 0.56 * math.sqrt(E_ksi / Fy_ksi)
     lambda_w_lim = 1.49 * math.sqrt(E_ksi / Fy_ksi)
     slender_section = (lambda_f > lambda_f_lim) or (lambda_w > lambda_w_lim)
 
-    Fex = (math.pi ** 2 * E_ksi) / (KLr_x ** 2)
-    Fey = (math.pi ** 2 * E_ksi) / (KLr_y ** 2)
+    Fex = (math.pi**2 * E_ksi) / (KLr_x**2)
+    Fey = (math.pi**2 * E_ksi) / (KLr_y**2)
 
     def Fcr(Fy, Fe):
         if Fy / Fe <= 2.25:
@@ -1813,12 +1804,10 @@ def steel_check_unitary_axis(
     Pny = Fcry * A_in2
 
     Pnz = None
-    Fez = None
-    Fcrz = None
     if not slender_section:
         kmax = max(kx, ky)
-        L_in = Lc_ft * 12.0
-        Fez = ((math.pi ** 2 * E_ksi * Cw) / ((kmax * L_in) ** 2) + (G_ksi * J)) / (Ix_in4 + Iy_in4)
+        L_in = Lbx_ft * 12.0
+        Fez = ((math.pi**2 * E_ksi * Cw) / ((kmax * L_in)**2) + (G_ksi * J)) / (Ix_in4 + Iy_in4)
         Fcrz = Fcr(Fy_ksi, Fez)
         Pnz = Fcrz * A_in2
 
@@ -1828,7 +1817,7 @@ def steel_check_unitary_axis(
     Util_compression = _safe_div(Pr_kips, Pc_kips)
 
     Cb = 1.0
-    c  = 1.0
+    c = 1.0
 
     My = Fy_ksi * S_bend / 12.0
     Mp = Fy_ksi * Z_bend / 12.0
@@ -1843,13 +1832,12 @@ def steel_check_unitary_axis(
             math.sqrt(
                 ((J * c) / (S_bend * hof)) +
                 math.sqrt(
-                    (((J * c) / (S_bend * hof)) ** 2) +
-                    6.76 * ((0.7 * Fy_ksi) / E_ksi) ** 2
+                    (((J * c) / (S_bend * hof))**2) +
+                    6.76 * ((0.7 * Fy_ksi) / E_ksi)**2
                 )
             )
         ) / 12.0
 
-    # Existing Lb policy remains: use Lbx_ft as unbraced length for LTB
     Lb_ft = float(Lbx_ft)
 
     if Lb_ft <= Lp:
@@ -1861,15 +1849,14 @@ def steel_check_unitary_axis(
             Mn2 = 0.0
         else:
             Lb_over_rts = (Lb_ft * 12.0) / rtsf
-            Fcr_ltb = ((Cb * math.pi ** 2 * E_ksi) / (Lb_over_rts ** 2)) * math.sqrt(
-                1.0 + 0.078 * (J * c) / (S_bend * hof) * (Lb_over_rts ** 2)
+            Fcr_ltb = ((Cb * math.pi**2 * E_ksi) / (Lb_over_rts**2)) * math.sqrt(
+                1.0 + 0.078 * (J * c) / (S_bend * hof) * (Lb_over_rts**2)
             )
             Mn2 = Fcr_ltb * S_bend / 12.0
 
     lambda_pf = 0.38 * math.sqrt(E_ksi / Fy_ksi)
     lambda_rf = 1.00 * math.sqrt(E_ksi / Fy_ksi)
 
-    kc = None
     if lambda_f <= lambda_pf:
         Mn3 = Mp
     elif lambda_f <= lambda_rf and (lambda_rf - lambda_pf) != 0:
@@ -1877,20 +1864,11 @@ def steel_check_unitary_axis(
     else:
         h = d_in - 2.0 * tf_in
         kc = max(0.35, min(4.0 / math.sqrt(h / tw_in), 0.76)) if (h > 0 and tw_in > 0) else 0.35
-        Mn3 = (0.9 * E_ksi * kc * S_bend) / (lambda_f ** 2) / 12.0
+        Mn3 = (0.9 * E_ksi * kc * S_bend) / (lambda_f**2) / 12.0
 
     Mn = min(Mp, Mn2, Mn3)
     Ma_kipft = Mn / Omega_b
     Util_flexure = _safe_div(Mu_kipft, Ma_kipft)
-
-    # Shear
-    Cv = None
-    kv = None
-    Aw = None
-    Av = None
-    htw = None
-    lim_G2_2 = None
-    lim_G2_3 = None
 
     if ax == "STRONG":
         kv = 5.34
@@ -1916,66 +1894,13 @@ def steel_check_unitary_axis(
     Va_kips = Vn_kips / Omega_v
     Util_shear = _safe_div(Vu_kips, Va_kips)
 
-    # Combined
     Pr_over_Pc = _safe_div(Pr_kips, Pc_kips)
     if Pr_over_Pc >= 0.2:
-        Util_combined = Pr_over_Pc + (8.0 / 9.0) * (Util_flexure + 0.0)
+        Util_combined = Pr_over_Pc + (8.0/9.0) * (Util_flexure + 0.0)
         eq_used = "H1-1a"
     else:
-        Util_combined = (Pr_over_Pc / 2.0) + (Util_flexure + 0.0)
+        Util_combined = (Pr_over_Pc/2.0) + (Util_flexure + 0.0)
         eq_used = "H1-1b"
-
-    # ---- NEW: debug payload for UI inspection ----
-    debug = dict(
-        # inputs
-        axis=ax,
-        bf_in=bf_in, d_in=d_in, tf_in=tf_in, tw_in=tw_in,
-        A_in2=A_in2, Ix_in4=Ix_in4, Iy_in4=Iy_in4,
-        Fy_ksi=Fy_ksi, E_ksi=E_ksi, G_ksi=G_ksi,
-        kx=kx, ky=ky, Omega_c=Omega_c, Omega_b=Omega_b, Omega_v=Omega_v, Omega_t=Omega_t,
-        Put_lb=Put_lb,
-
-        # demands parsed
-        Puc_head_lb=Puc_head_lb, Mmax_inlb=Mmax_inlb, Vmax_lb=Vmax_lb,
-        Lbx_ft=Lbx_ft, LA_reveal_ft=LA_reveal_ft,
-        Lc_ft=Lc_ft,
-
-        # section intermediates
-        h_web=h_web,
-        Sx=Sx, Sy=Sy, Zx=Zx, Zy=Zy,
-        rx=rx, ry=ry,
-        J=J, Cw=Cw,
-
-        # slenderness + buckling
-        KLr_x=KLr_x, KLr_y=KLr_y,
-        lambda_f=lambda_f, lambda_w=lambda_w,
-        lambda_f_lim=lambda_f_lim, lambda_w_lim=lambda_w_lim,
-        slender_section=slender_section,
-        Fex=Fex, Fey=Fey,
-        Fcrx=Fcrx, Fcry=Fcry,
-        Pnx=Pnx, Pny=Pny,
-        Fez=Fez, Fcrz=Fcrz, Pnz=Pnz,
-        Pn_kips=Pn_kips,
-
-        # bending intermediates
-        S_bend=S_bend, Z_bend=Z_bend,
-        r_bend_minor=r_bend_minor, hof=hof, rtsf=rtsf,
-        Cb=Cb, c=c,
-        My=My, Mp=Mp,
-        Lp=Lp, Lr=Lr,
-        Mn2=Mn2, Mn3=Mn3, Mn=Mn,
-        kc=kc,
-        Ma_kipft=Ma_kipft,
-
-        # shear intermediates
-        kv=kv, Cv=Cv, Aw=Aw, Av=Av, htw=htw,
-        lim_G2_2=lim_G2_2, lim_G2_3=lim_G2_3,
-        Vn_kips=Vn_kips, Va_kips=Va_kips,
-
-        # combined
-        Pr_over_Pc=Pr_over_Pc,
-        Combined_eq=eq_used,
-    )
 
     return dict(
         axis=ax,
@@ -1994,11 +1919,7 @@ def steel_check_unitary_axis(
         Util_shear=Util_shear,
         Util_combined=Util_combined,
         Combined_eq=eq_used,
-        _debug=debug,  # 👈 NEW: full variable dump for inspection
     )
-
-    
-    
 
 
 # =========================================================
@@ -2120,7 +2041,6 @@ class LPileOptimizerApp:
         self._last_governing_steel: dict | None = None  # contains Util_* and governing axes
         self._case_counter: int = 0
         self._saved_cases: list[dict] = []
-        self._last_steel_debug = None
 
         self.SEP_COLORS = {
             "files_to_mode":   "#5DADE2",
@@ -2426,16 +2346,6 @@ class LPileOptimizerApp:
 
         tk.Label(self.main_frame, text="Combined (H1)", bg=BG_COLOR, fg=FG_COLOR).grid(row=r2, column=3, sticky="e")
         self.badge_comb.grid(row=r2, column=4, sticky="w")
-
-                # NEW: debug button (disabled until a steel check runs)
-        self.btn_steel_debug = ttk.Button(
-            self.main_frame,
-            text="VIEW STEEL CHECK VARIABLES",
-            command=self.show_steel_debug_window
-        )
-        self.btn_steel_debug.grid(row=r2, column=6, columnspan=2, sticky="ew", padx=(10, 0))
-        self.btn_steel_debug.state(["disabled"])
-
 
     def _build_run_row(self, r):
         b1 = ttk.Button(self.main_frame, text="RUN OPTIMIZER", command=self.run_optimizer)
@@ -2784,211 +2694,80 @@ class LPileOptimizerApp:
 
         messagebox.showinfo("Steel Check", "\n".join(lines))
 
-    
-
-    #######################################################
-
-        def show_steel_debug_window(self):
-        data = getattr(self, "_last_steel_debug", None)
-        if not data:
-            messagebox.showinfo("Steel Debug", "No steel-check debug data available yet.")
-            return
-
-        win = tk.Toplevel(self.root)
-        win.title("Steel Check Debug Variables")
-        win.configure(bg=BG_COLOR)
-        win.geometry("980x650")
-
-        nb = ttk.Notebook(win)
-        nb.pack(fill="both", expand=True, padx=10, pady=10)
-
-        def add_kv_tab(title: str, kv: dict):
-            frame = tk.Frame(nb, bg=BG_COLOR)
-            nb.add(frame, text=title)
-
-            # search
-            search_var = tk.StringVar(value="")
-            top = tk.Frame(frame, bg=BG_COLOR)
-            top.pack(fill="x", pady=(0, 6))
-
-            tk.Label(top, text="Filter:", bg=BG_COLOR, fg=FG_COLOR).pack(side="left")
-            ent = ttk.Entry(top, textvariable=search_var, width=40)
-            ent.pack(side="left", padx=6)
-
-            cols = ("Variable", "Value")
-            tv = ttk.Treeview(frame, columns=cols, show="headings")
-            tv.heading("Variable", text="Variable")
-            tv.heading("Value", text="Value")
-            tv.column("Variable", width=360, anchor="w", stretch=False)
-            tv.column("Value", width=560, anchor="w", stretch=True)
-
-            vsb = ttk.Scrollbar(frame, orient="vertical", command=tv.yview)
-            tv.configure(yscrollcommand=vsb.set)
-
-            tv.pack(side="left", fill="both", expand=True)
-            vsb.pack(side="right", fill="y")
-
-            # flatten dict helper (so nested dicts show nicely)
-            rows = []
-            def flatten(prefix, obj):
-                if isinstance(obj, dict):
-                    for k, v in obj.items():
-                        flatten(f"{prefix}{k}.", v)
-                else:
-                    rows.append((prefix[:-1], str(obj)))
-            flatten("", kv)
-
-            def populate(filter_txt=""):
-                tv.delete(*tv.get_children())
-                ft = (filter_txt or "").strip().lower()
-                for k, v in rows:
-                    if (not ft) or (ft in k.lower()) or (ft in v.lower()):
-                        tv.insert("", "end", values=(k, v))
-
-            def on_search(*_):
-                populate(search_var.get())
-
-            ent.bind("<KeyRelease>", on_search)
-            populate("")
-
-            # copy selected
-            def copy_selected():
-                sel = tv.selection()
-                if not sel:
-                    return
-                lines = []
-                for iid in sel:
-                    a, b = tv.item(iid, "values")
-                    lines.append(f"{a} = {b}")
-                win.clipboard_clear()
-                win.clipboard_append("\n".join(lines))
-
-            btns = tk.Frame(frame, bg=BG_COLOR)
-            btns.pack(fill="x", pady=(6, 0))
-            ttk.Button(btns, text="Copy Selected", command=copy_selected).pack(side="left")
-
-        # Tab 1: inputs
-        add_kv_tab("Inputs", data.get("inputs", {}))
-
-        # Tabs: each axis
-        for ax in data.get("axes", []):
-            axis_name = ax.get("axis", "AXIS")
-            debug = ax.get("debug", {})
-            results = ax.get("results", {})
-            add_kv_tab(f"{axis_name} (debug)", debug)
-            add_kv_tab(f"{axis_name} (results)", {k:v for k,v in results.items() if k != "_debug"})
-
-        # Governing
-        add_kv_tab("Governing", data.get("governing", {}))
-
-
     def _run_steel_check_from_combo(self, combo: EvalResultCombo):
-    """
-    Uses the lp12o produced by the last run (optimizer optimum or run-only).
-    Runs axis-aware steel check.
-    Updates badges with GOVERNING across axes.
-    ALSO stores governing results for "SAVE CASE" feature.
-    """
-    # Reset stored governing each run attempt
-    self._last_governing_steel = None
+        """
+        Uses the lp12o produced by the last run (optimizer optimum or run-only).
+        Runs axis-aware steel check.
+        Updates badges with GOVERNING across axes.
+        ALSO stores governing results for "SAVE CASE" feature.
+        """
+        # Reset stored governing each run attempt
+        self._last_governing_steel = None
 
-    # If steel check is OFF: clear badges + disable debug button + clear stored debug
-    if not self.steel_enabled_var.get():
-        self._update_steel_badges(None)
-        if hasattr(self, "btn_steel_debug"):
-            self.btn_steel_debug.state(["disabled"])
-        self._last_steel_debug = None
-        return
-
-    # Inputs
-    Fy_ksi = self._req_float("Fy (ksi)", self.Fy_ksi_var.get())
-    E_ksi  = self._req_float("E (ksi)",  self.E_ksi_var.get())
-    G_ksi  = self._req_float("G (ksi)",  self.G_ksi_var.get())
-    kx     = self._req_float("kx", self.kx_var.get())
-    ky     = self._req_float("ky", self.ky_var.get())
-    Om_c   = self._req_float("Ωc", self.Omega_c_var.get())
-    Om_b   = self._req_float("Ωb", self.Omega_b_var.get())
-    Om_v   = self._req_float("Ωv", self.Omega_v_var.get())
-    Om_t   = self._req_float("Ωt", self.Omega_t_var.get())
-    Put_lb = self._req_float("P uplift (Put) lb", self.Put_lb_var.get())
-
-    Epsi, bf_in, d_in, tf_in, tw_in, A_in2, Ix_in4, Iy_in4 = self._get_section_inputs()
-
-    steels = []
-
-    def do_axis(r: EvalResult, axis: str):
-        if r is None:
+        if not self.steel_enabled_var.get():
+            self._update_steel_badges(None)
             return
-        if r.STATUS != "OK" or r.out_path is None:
+
+        # Inputs
+        Fy_ksi = self._req_float("Fy (ksi)", self.Fy_ksi_var.get())
+        E_ksi  = self._req_float("E (ksi)",  self.E_ksi_var.get())
+        G_ksi  = self._req_float("G (ksi)",  self.G_ksi_var.get())
+        kx     = self._req_float("kx", self.kx_var.get())
+        ky     = self._req_float("ky", self.ky_var.get())
+        Om_c   = self._req_float("Ωc", self.Omega_c_var.get())
+        Om_b   = self._req_float("Ωb", self.Omega_b_var.get())
+        Om_v   = self._req_float("Ωv", self.Omega_v_var.get())
+        Om_t   = self._req_float("Ωt", self.Omega_t_var.get())
+        Put_lb = self._req_float("P uplift (Put) lb", self.Put_lb_var.get())
+
+        Epsi, bf_in, d_in, tf_in, tw_in, A_in2, Ix_in4, Iy_in4 = self._get_section_inputs()
+
+        steels = []
+
+        def do_axis(r: EvalResult, axis: str):
+            if r is None:
+                return
+            if r.STATUS != "OK" or r.out_path is None:
+                return
+            demands = parse_lp12o_demands_single(r.out_path)
+            s = steel_check_unitary_axis(
+                axis=axis,
+                demands=demands,
+                bf_in=bf_in, d_in=d_in, tf_in=tf_in, tw_in=tw_in,
+                A_in2=A_in2, Ix_in4=Ix_in4, Iy_in4=Iy_in4,
+                Fy_ksi=Fy_ksi, E_ksi=E_ksi, G_ksi=G_ksi,
+                kx=kx, ky=ky,
+                Omega_c=Om_c, Omega_b=Om_b, Omega_v=Om_v, Omega_t=Om_t,
+                Put_lb=Put_lb,
+            )
+            steels.append(s)
+
+        if combo.strong is not None:
+            do_axis(combo.strong, "STRONG")
+        if combo.weak is not None:
+            do_axis(combo.weak, "WEAK")
+
+        if not steels:
+            self._update_steel_badges(None)
+            messagebox.showwarning("Steel Check", "Steel check could not run (no OK lp12o outputs found).")
             return
-        demands = parse_lp12o_demands_single(r.out_path)
-        s = steel_check_unitary_axis(
-            axis=axis,
-            demands=demands,
-            bf_in=bf_in, d_in=d_in, tf_in=tf_in, tw_in=tw_in,
-            A_in2=A_in2, Ix_in4=Ix_in4, Iy_in4=Iy_in4,
-            Fy_ksi=Fy_ksi, E_ksi=E_ksi, G_ksi=G_ksi,
-            kx=kx, ky=ky,
-            Omega_c=Om_c, Omega_b=Om_b, Omega_v=Om_v, Omega_t=Om_t,
-            Put_lb=Put_lb,
-        )
-        steels.append(s)
 
-    if combo.strong is not None:
-        do_axis(combo.strong, "STRONG")
-    if combo.weak is not None:
-        do_axis(combo.weak, "WEAK")
+        governing = self._compute_governing_steel(steels)
 
-    if not steels:
-        self._update_steel_badges(None)
-        messagebox.showwarning("Steel Check", "Steel check could not run (no OK lp12o outputs found).")
+        # Store for SAVE CASE feature
+        self._last_governing_steel = governing
 
-        # No results => no debug to inspect
-        if hasattr(self, "btn_steel_debug"):
-            self.btn_steel_debug.state(["disabled"])
-        self._last_steel_debug = None
-        return
+        # Update badges with governing utilizations
+        self._update_steel_badges({
+            "Util_tension": governing.get("Util_tension"),
+            "Util_compression": governing.get("Util_compression"),
+            "Util_flexure": governing.get("Util_flexure"),
+            "Util_shear": governing.get("Util_shear"),
+            "Util_combined": governing.get("Util_combined"),
+        })
 
-    governing = self._compute_governing_steel(steels)
-
-    # Store for SAVE CASE feature
-    self._last_governing_steel = governing
-
-    # Update badges with governing utilizations
-    self._update_steel_badges({
-        "Util_tension": governing.get("Util_tension"),
-        "Util_compression": governing.get("Util_compression"),
-        "Util_flexure": governing.get("Util_flexure"),
-        "Util_shear": governing.get("Util_shear"),
-        "Util_combined": governing.get("Util_combined"),
-    })
-
-    # NEW: store debug payloads for UI inspection
-    self._last_steel_debug = {
-        "inputs": {
-            "Fy_ksi": Fy_ksi, "E_ksi": E_ksi, "G_ksi": G_ksi,
-            "kx": kx, "ky": ky,
-            "Omega_c": Om_c, "Omega_b": Om_b, "Omega_v": Om_v, "Omega_t": Om_t,
-            "Put_lb": Put_lb,
-            "section": {
-                "bf_in": bf_in, "d_in": d_in, "tf_in": tf_in, "tw_in": tw_in,
-                "A_in2": A_in2, "Ix_in4": Ix_in4, "Iy_in4": Iy_in4
-            },
-        },
-        "axes": [
-            {"axis": s.get("axis"), "results": s, "debug": s.get("_debug", {})}
-            for s in steels
-        ],
-        "governing": governing,
-    }
-
-    # enable the new button if present
-    if hasattr(self, "btn_steel_debug"):
-        self.btn_steel_debug.state(["!disabled"])
-
-    # Popup: both axis results if available
-    self._show_steel_popup_both(steels, governing)
-
+        # Popup: both axis results if available
+        self._show_steel_popup_both(steels, governing)
 
     # =========================================================
     # SAVE CASE ACTIONS
